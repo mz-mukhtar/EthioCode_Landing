@@ -338,7 +338,9 @@
         
         if (res.status === 401 || res.status === 403) return logout();
         
-        const data = await res.json();
+        const json = await res.json();
+        // API returns { success, count, leads: [...] }
+        const data = json.leads || [];
         tbody.innerHTML = '';
         
         if (data.length === 0) {
@@ -353,13 +355,13 @@
             <td data-label="ID">#${item.id}</td>
             <td data-label="Name">${escapeHTML(item.name)}</td>
             <td data-label="Email">${escapeHTML(item.email)}</td>
-            <td data-label="Role"><span class="badge badge-yellow">${escapeHTML(item.role)}</span></td>
+            <td data-label="Role"><span class="badge badge-yellow">${escapeHTML(item.role || 'N/A')}</span></td>
             <td data-label="Date">${d}</td>
           `;
           tbody.appendChild(tr);
         });
       } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:red;">Error loading data.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:red;">Error loading data: ' + err.message + '</td></tr>';
       }
     }
 
@@ -374,7 +376,9 @@
         
         if (res.status === 401 || res.status === 403) return logout();
         
-        const data = await res.json();
+        const json = await res.json();
+        // API returns { success, stats, requests: [...] }
+        const data = json.requests || [];
         tbody.innerHTML = '';
         
         if (data.length === 0) {
@@ -384,19 +388,42 @@
 
         data.forEach(item => {
           const tr = document.createElement('tr');
+          tr.id = 'demo-row-' + item.id;
           const d = new Date(item.created_at).toLocaleDateString();
+          const statusBadge = item.sent
+            ? '<span class="badge badge-green">Sent</span>'
+            : '<span class="badge badge-yellow">Pending</span>';
+          const actionBtn = item.sent
+            ? '<span style="color:var(--muted); font-size:13px;">✓ Done</span>'
+            : `<button class="btn btn-secondary" style="padding:4px 12px;" onclick="markSent(${item.id})">Mark Sent</button>`;
           tr.innerHTML = `
             <td data-label="Name">${escapeHTML(item.name)}</td>
             <td data-label="Email">${escapeHTML(item.email)}</td>
             <td data-label="Message">${escapeHTML(item.message || '-')}</td>
             <td data-label="Date">${d}</td>
-            <td data-label="Status"><span class="badge badge-yellow">Pending</span></td>
-            <td data-label="Action"><button class="btn btn-secondary" style="padding:4px 12px;" onclick="alert('APK Sent via email! (Simulation)')">Mark Sent</button></td>
+            <td data-label="Status">${statusBadge}</td>
+            <td data-label="Action">${actionBtn}</td>
           `;
           tbody.appendChild(tr);
         });
       } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error loading data.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error loading data: ' + err.message + '</td></tr>';
+      }
+    }
+
+    async function markSent(id) {
+      try {
+        const res = await fetch(`/api/demo-requests/${id}/sent`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          fetchDemos(); // Refresh table
+        } else {
+          alert('Failed to mark as sent.');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
       }
     }
 

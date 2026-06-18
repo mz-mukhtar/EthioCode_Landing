@@ -824,7 +824,7 @@
       <div class="footer-links">
         <a href="#features" data-en="Features" data-am="ባህሪዎች">Features</a>
         <a href="#schools" data-en="For Schools" data-am="ለትምህርት ቤቶች">For Schools</a>
-        <a href="mailto:hello@ethiocode.et">hello@ethiocode.et</a>
+        <a href="mailto:mahi.zeki-ug@aau.edu.et">mahi.zeki-ug@aau.edu.et</a>
       </div>
       <div style="font-size:14px; color:var(--muted); font-weight:500;">
         Built in Ethiopia 🇪🇹
@@ -1095,7 +1095,15 @@ for student in students:
         if(cmd === 'pwd') { printToTerminal('/home/student/ethiocode'); return; }
         if(cmd.startsWith('echo ')) { printToTerminal(cmd.substring(5)); return; }
         if(cmd === 'python --version') { printToTerminal('Python 3.11 (Pyodide)'); return; }
-        if(cmd === 'help') { printToTerminal('Commands: clear, ls, pwd, echo, python --version. Or type valid Python code.'); return; }
+        if(cmd === 'help') { printToTerminal('Commands: clear, ls, pwd, echo, cat, python --version. Or type valid Python code.'); return; }
+        if(cmd.startsWith('cat ')) {
+          const fname = cmd.substring(4).trim();
+          if(fname === 'output.txt') { printToTerminal('(output.txt is empty — run your code first to generate output)'); }
+          else if(fname === 'README.md') { printToTerminal('# EthioCode Demo\nWrite Python or HTML, run it, and ask the AI Tutor for help!'); }
+          else if(fname === 'main.py') { printToTerminal(editor ? editor.getValue() : '(editor not ready)'); }
+          else { printToTerminal(`cat: ${fname}: No such file or directory`, '#EF4444'); }
+          return;
+        }
         
         // Eval python
         if(pyodideInstance) {
@@ -1126,9 +1134,15 @@ for student in students:
         return;
       }
       try {
+        // Patch input() to use browser prompt so programs with input() don't crash
+        pyodideInstance.globals.set('input', (prompt) => {
+          const val = window.prompt(prompt || '');
+          if (val !== null) printToTerminal((prompt || '') + val, '#fff');
+          return val || '';
+        });
         await pyodideInstance.runPythonAsync(code);
       } catch(err) {
-        // stderr is handled by Pyodide output interceptor
+        // stderr is handled by Pyodide output interceptor above
       }
     }
 
