@@ -1,59 +1,48 @@
-version: '3.9'
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: ethiocode_postgres
     restart: unless-stopped
-    env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 30s
-    networks:
-      - ethiocode_net
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ethiocode_backend
     restart: unless-stopped
-    env_file: .env
+    expose:
+      - "3001"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: ${PORT:-3001}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
-    expose:
-      - "3001"
-    networks:
-      - ethiocode_net
 
   frontend:
     image: nginx:alpine
-    container_name: ethiocode_frontend
     restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
+    expose:
+      - "80"
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
-      - ./nginx/default.conf:/etc/nginx/default.conf:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
-    networks:
-      - ethiocode_net
 
 volumes:
   postgres_data:
-    driver: local
-
-networks:
-  ethiocode_net:
-    driver: bridge
